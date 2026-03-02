@@ -1,0 +1,32 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+
+name: tfidf_features
+display_name: TF-IDF Features
+type: command
+
+inputs:
+  data:
+    type: uri_folder
+  max_features:
+    type: integer
+    default: 1000
+  mode:
+    type: string
+
+outputs:
+  out:
+    type: uri_folder
+  vectorizer:
+    type: uri_file
+
+code: .
+
+command: >
+  python tfidf.py
+  --data ${{inputs.data}}
+  --mode ${{inputs.mode}}
+  --max_features ${{inputs.max_features}}
+  --out ${{outputs.out}}
+  --vectorizer ${{outputs.vectorizer}}
+
+environment: azureml:AzureML-sklearn-1.1-ubuntu20.04-py38-cpu@latest
