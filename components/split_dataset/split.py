@@ -9,7 +9,7 @@ def parse_args():
     parser.add_argument("--train_out", type=str, required=True)
     parser.add_argument("--val_out", type=str, required=True)
     parser.add_argument("--test_out", type=str, required=True)
-    parser.add_argument("--deployment_out", type=str, required=True)  # 🔥 NEW
+    parser.add_argument("--deployment_out", type=str, required=True)
     return parser.parse_args()
 
 
@@ -17,13 +17,26 @@ def main():
     args = parse_args()
 
     # ---------------- LOAD ----------------
-    df = pd.read_parquet(args.data)
+    # Azure passes a folder → read the parquet inside
+    input_path = os.path.join(args.data, "data.parquet")
+    df = pd.read_parquet(input_path)
 
-    if "review_year" not in df.columns:
-        raise ValueError("Column 'review_year' not found.")
+    print("Columns in dataset:", df.columns.tolist())
+
+    # ---------------- HANDLE REVIEW YEAR ----------------
+    if "review_year" in df.columns:
+        year_col = "review_year"
+    elif "review_year_x" in df.columns:
+        year_col = "review_year_x"
+    elif "review_year_y" in df.columns:
+        year_col = "review_year_y"
+    else:
+        raise ValueError("No review_year column found in dataset.")
+
+    print("Using year column:", year_col)
 
     # ---------------- SORT BY TIME ----------------
-    df = df.sort_values(by="review_year")
+    df = df.sort_values(by=year_col)
 
     total_len = len(df)
 
@@ -38,7 +51,6 @@ def main():
     # ---------------- TRAIN / VAL / TEST ----------------
     train_size = int(0.60 * remaining_len)
     val_size = int(0.15 * remaining_len)
-    test_size = remaining_len - train_size - val_size
 
     train_df = remaining_df.iloc[:train_size]
     val_df = remaining_df.iloc[train_size:train_size + val_size]
