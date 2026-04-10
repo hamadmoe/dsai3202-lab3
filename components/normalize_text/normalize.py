@@ -15,25 +15,12 @@ def normalize_text(text):
     if pd.isna(text):
         return ""
 
-    # Convert to string (safety)
     text = str(text)
-
-    # Lowercase
     text = text.lower()
-
-    # Replace URLs
     text = re.sub(r"http\S+|www\S+", " <url> ", text)
-
-    # Replace numbers
     text = re.sub(r"\d+", " <number> ", text)
-
-    # Remove punctuation (keep only letters, numbers and spaces)
     text = re.sub(r"[^\w\s]", " ", text)
-
-    # Remove extra whitespace
     text = re.sub(r"\s+", " ", text)
-
-    # Trim leading/trailing whitespace
     text = text.strip()
 
     return text
@@ -42,30 +29,42 @@ def normalize_text(text):
 def main():
     args = parse_args()
 
-    # Load dataset (expects parquet file inside folder)
+    # Load dataset
     input_path = os.path.join(args.data, "data.parquet")
     df = pd.read_parquet(input_path)
 
-    # Make sure column exists (adjust if your column name is different)
-    text_column = "reviewText"
+    # ---------------- FIX: DETECT TEXT COLUMN ----------------
+    if "reviewText" in df.columns:
+        text_column = "reviewText"
+    elif "reviewText_x" in df.columns:
+        text_column = "reviewText_x"
+    elif "reviewText_y" in df.columns:
+        text_column = "reviewText_y"
+    else:
+        raise ValueError(
+            "No review text column found (expected reviewText / reviewText_x / reviewText_y)"
+        )
 
-    if text_column not in df.columns:
-        raise ValueError(f"Column '{text_column}' not found in dataset.")
+    print(f"Using text column: {text_column}")
 
-    # Apply normalization
+    # ---------------- NORMALIZE ----------------
     df[text_column] = df[text_column].apply(normalize_text)
 
-    # Remove empty or very short reviews (<10 characters)
+    # ---------------- FILTER SHORT REVIEWS ----------------
     df = df[df[text_column].str.len() >= 10]
 
-    # Create output directory
-    os.makedirs(args.out, exist_ok=True)
+    # ---------------- OPTIONAL: STANDARDIZE COLUMN NAME ----------------
+    # Rename to 'reviewText' so downstream steps are consistent
+    if text_column != "reviewText":
+        df = df.rename(columns={text_column: "reviewText"})
 
-    # Save normalized dataset
+    # ---------------- SAVE ----------------
+    os.makedirs(args.out, exist_ok=True)
     output_path = os.path.join(args.out, "data.parquet")
     df.to_parquet(output_path)
 
     print("Rows after normalization:", len(df))
+    print("Columns:", df.columns.tolist())
 
 
 if __name__ == "__main__":
